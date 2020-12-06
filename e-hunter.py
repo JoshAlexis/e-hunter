@@ -60,6 +60,35 @@ def create_static_urls(base_url, number_images):
     return images_urls
 
 
+def clean_title(title):
+    """
+    Removes out the invalid characters for a windows directory
+    name
+
+    Parameters
+    ----------
+    title : str
+        The original title
+
+    Returns
+    -------
+    str
+        The title without the invalid characters
+    """
+    char_to_replace = {
+        '<' : '-',
+        '>' : '-',
+        ':' : '-',
+        '/' : '-',
+        '\\': '-',
+        '|' : '-',
+        '?' : '-',
+        "*" : '-'
+    }
+    for key, value in char_to_replace.items():
+        title = title.replace(key, value)
+    return title
+
 def download_images(images_urls, title):
     """
     Creates the directory to store the images and
@@ -73,6 +102,7 @@ def download_images(images_urls, title):
         The title of the set of images
     """
     # We get the name of the folder
+    title = clean_title(title)
     path = " ".join(title.split(' ')[0:-2])
 
     if not os.path.isdir(path):

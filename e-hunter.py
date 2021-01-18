@@ -1,8 +1,23 @@
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import requests, os, re
+# Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Mobile Safari/537.36 Edg/87.0.664.75
 
-headers = {"User-Agent": "Mozilla/5.0"}
+userAgents = [
+    {
+        'User-Agent' : 'Edg/87.0.664.66'
+    },
+    {
+        'User-Agent' : 'Chrome/87.0.4280.141'
+    },
+    {
+        'User-Agent' : 'Mozilla/5.0'
+    },
+    {
+        'User-Agent' : 'Firefox/77.0'
+    }
+]
+# headers = {}
 
 regex = re.compile(
     r'^(?:http|ftp)s?://' # http:// or https://
@@ -22,27 +37,39 @@ def get_images(url):
     url : str
         The URL of the image set
     """
-    request_text = requests.get(url, headers=headers).text
-    soup = BeautifulSoup(request_text, 'lxml')
-    # we get the attachment URL of the first image
-    image_container = soup.find('div', class_ ="icon-overlay")
-    url_set = image_container.find('a')
-    chunk_url = url_set['href'].split("/")
-    """
-    We separate the attachment/number/ part of the first image, 
-    because sometimes the set of images begins in the second image
-    """
-    attachment_url = f'{chunk_url[-3]}/{chunk_url[-2]}/'
-    img_url = ""
-    if not url[-1] == '/':
-        img_url = f'{url}/{attachment_url}'
-    else:
-        img_url = f'{url}{attachment_url}'
-    attachment_req = requests.get(img_url, headers=headers).text
-    attachment_soup = BeautifulSoup(attachment_req, 'lxml')
-    title = attachment_soup.find('h2').text
-    total_images = get_total_images(title)
-    download_images(img_url, title, total_images)
+    headers = {}
+    for agent in userAgents:
+        request_text = requests.get(url, headers=agent).text
+        soup = BeautifulSoup(request_text, 'lxml')
+        # we get the attachment URL of the first image
+        image_container = soup.find('div', class_ ="icon-overlay")
+        if image_container:
+            headers = agent
+            break
+        else:
+            print("Request failed. Attempting with new User-Agent")
+
+    try:
+        url_set = image_container.find('a')
+        chunk_url = url_set['href'].split("/")
+        """
+        We separate the attachment/number/ part of the first image, 
+        because sometimes the set of images begins in the second image
+        """
+        attachment_url = f'{chunk_url[-3]}/{chunk_url[-2]}/'
+        img_url = ""
+        if not url[-1] == '/':
+            img_url = f'{url}/{attachment_url}'
+        else:
+            img_url = f'{url}{attachment_url}'
+            attachment_req = requests.get(img_url, headers=headers).text
+            attachment_soup = BeautifulSoup(attachment_req, 'lxml')
+            title = attachment_soup.find('h2').text
+            total_images = get_total_images(title)
+            download_images(img_url, title, total_images, headers)
+    except AttributeError as e:
+        print("Cannot find the element")
+
 
 
 def get_total_images(title):
@@ -95,7 +122,7 @@ def clean_title(title):
         title = title.replace(key, value)
     return title
 
-def get_static_url_from_attachment(attachment_url, attach_num):
+def get_static_url_from_attachment(attachment_url, attach_num, headers):
     """
     Obtains the URL to the file of each image.
 
@@ -106,7 +133,8 @@ def get_static_url_from_attachment(attachment_url, attach_num):
         https://hentai-cosplays/image/name/attachment/attach_num/
     attach_num : int
         The number of the current attachment URL
-
+    headers : dict[str, str]
+        The User-Agent string for the request
     Returns
     -------
     str
@@ -130,7 +158,7 @@ def get_static_url_from_attachment(attachment_url, attach_num):
     static_url = img['href']
     return static_url
 
-def download_images(base_url, title, total_images):
+def download_images(base_url, title, total_images, headers):
     """
     Creates the directory to store the images and
     downloads the images.
@@ -143,6 +171,8 @@ def download_images(base_url, title, total_images):
         The title of the set of images
     total_images : int
         The total number of images to download
+    headers : dict[str, str]
+        The User-Agent string for the request
     """
     # We get the name of the folder
     title = clean_title(title)
@@ -157,13 +187,12 @@ def download_images(base_url, title, total_images):
             return
 
     for i in range(1, total_images + 1):
-        url_img = get_static_url_from_attachment(base_url, i)
+        url_img = get_static_url_from_attachment(base_url, i, headers)
 
         if url_img == "No available":
             continue
 
         img = url_img.split('/')[-1]
-
         image_res = requests.get(url_img, headers=headers, stream=True)
         img_status = image_res.status_code
         if img_status == 200:

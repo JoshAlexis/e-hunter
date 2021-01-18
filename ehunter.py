@@ -198,7 +198,7 @@ class EHunter:
                 image_path = f'{path}/{img}'
                 chunk_size = 1024
 
-                progress = tqdm(image_res.iter_content(chunk_size=chunk_size), f'Downloading {img}',
+                progress = tqdm(image_res.iter_content(chunk_size=chunk_size), f'Downloading {img}, {i}/{total_images}',
                                 total=file_size / chunk_size, unit="KB")
                 with open(image_path, "wb") as image:
                     for data in progress:

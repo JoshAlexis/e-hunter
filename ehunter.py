@@ -20,6 +20,10 @@ class EHunter:
         }
     ]
 
+    areMultipleSets = False
+
+    totalImages = 0
+
     def get_images(self, url):
         """
         Obtains the title of the image set and the static files url
@@ -109,7 +113,8 @@ class EHunter:
             '|' : '-',
             '?' : '-',
             "*" : '-',
-            "\"": '-'
+            "\"": '-',
+            '.' : '-'
         }
         for key, value in char_to_replace.items():
             title = title.replace(key, value)
@@ -174,6 +179,7 @@ class EHunter:
 
         if not os.path.isdir(path):
             try:
+                print(f"created folder for {title}")
                 os.mkdir(path)
             except OSError:
                 print(f"Cannot create directory {path}")
